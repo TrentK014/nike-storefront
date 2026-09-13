@@ -26,6 +26,7 @@ export default function CheckoutPage() {
   const [discountInput, setDiscountInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; discount_amount_cents: number } | null>(null);
   const [discountError, setDiscountError] = useState<string | null>(null);
+  const [bestOffer, setBestOffer] = useState<{ code: string; discount_amount_cents: number } | null>(null);
 
   const loadCart = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -52,6 +53,28 @@ export default function CheckoutPage() {
   const subtotalCents = cartItems.reduce((sum, i) => sum + Math.round(salePrice(i.msrp, i.sale_percent ?? 0) * i.quantity * 100), 0);
   const discountCents = appliedDiscount?.discount_amount_cents ?? 0;
   const totalCents = Math.max(0, subtotalCents - discountCents);
+
+  // Suggest the best available code automatically once we know the subtotal,
+  // instead of making shoppers hunt for one.
+  useEffect(() => {
+    if (cartLoading || subtotalCents <= 0 || appliedDiscount) {
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/discount/best?subtotal_cents=${subtotalCents}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.code) {
+          setBestOffer(data);
+        }
+      })
+      .catch(() => {
+        // No offer to suggest; the manual code field still works.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cartLoading, subtotalCents, appliedDiscount]);
 
   const handleApplyDiscount = useCallback(async () => {
     const code = discountInput.trim().toUpperCase();
@@ -351,6 +374,19 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                     {discountError && <p className="mt-2 font-cabinet text-xs text-red-600">{discountError}</p>}
+                    {bestOffer && !appliedDiscount && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountInput(bestOffer.code);
+                          setAppliedDiscount(bestOffer);
+                        }}
+                        className="mt-2 block font-cabinet text-xs font-bold text-blue-700 underline"
+                      >
+                        Apply best available offer ({bestOffer.code}) and save{" "}
+                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(bestOffer.discount_amount_cents / 100)}
+                      </button>
+                    )}
                     {appliedDiscount && (
                       <div className="mt-3 flex justify-between font-cabinet text-sm text-green-700">
                         <span className="font-bold">Discount ({appliedDiscount.code})</span>
