@@ -1,0 +1,220 @@
+# QA manifest for the Agentic QA Fleet.
+# Format: https://github.com/joshmkim/qa-agent/blob/main/docs/qa-manifest.md
+# Validate locally: pnpm --filter @qa-agent/control-plane manifest:check .qa/manifest.yaml
+version: 1
+
+product:
+  name: Nike Storefront
+  intent: >-
+    Shoppers browse shoes by category (men, women, kids, sport, classics, sale),
+    open a shoe to pick a size, favorite shoes, add sized items to their bag,
+    and check out with an optional discount code. Signed-in shoppers can review
+    shoes they have purchased. Sale prices come from each stock row's sale_percent.
+  stakeholders: [storefront team]
+
+surfaces:
+  # Shared shell: every page renders inside StorefrontLayout (nav bar with bag count, product grid).
+  - id: layout-nav
+    kind: flow
+    name: Storefront layout and nav bar
+    locator: "nav"
+    description: Top navigation, bag count badge, product grid with favorite hearts.
+    sources: [src/components/StorefrontLayout.tsx, src/components/NavBar.tsx, src/app/layout.tsx, src/app/globals.css]
+
+  - id: home
+    kind: page
+    name: Home
+    locator: /
+    sources: [src/app/page.tsx]
+  - id: category-men
+    kind: page
+    name: Men
+    locator: /men
+    sources: [src/app/men/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+  - id: category-women
+    kind: page
+    name: Women
+    locator: /women
+    sources: [src/app/women/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+  - id: category-kids
+    kind: page
+    name: Kids
+    locator: /kids
+    sources: [src/app/kids/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+  - id: category-sport
+    kind: page
+    name: Sport
+    locator: /sport
+    sources: [src/app/sport/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+  - id: category-classics
+    kind: page
+    name: Classics
+    locator: /classics
+    sources: [src/app/classics/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+  - id: sale
+    kind: page
+    name: Sale
+    locator: /sale
+    description: Only shoes with a stock row that has sale_percent > 0.
+    sources: [src/app/sale/**, src/lib/category-shoes.ts, src/components/ProductGridWithFavorites.tsx, src/components/ProductCard.tsx, src/components/SaleSticker.tsx]
+
+  - id: shoe-detail
+    kind: page
+    name: Shoe detail
+    locator: /shoe/:id
+    description: Size selector (per-size sale stickers), add to bag modal, review feed.
+    sources: [src/app/shoe/**, src/components/ShoeDetailContent.tsx, src/components/ShoeSizeSelector.tsx, src/components/SaleSticker.tsx, src/components/AddedToBagModal.tsx]
+  - id: size-selector
+    kind: form
+    name: Size selector
+    locator: "[data-size]"
+    sources: [src/components/ShoeSizeSelector.tsx, src/components/SaleSticker.tsx]
+  - id: add-to-bag
+    kind: button
+    name: Add to bag
+    locator: "button:has-text('Add to Bag')"
+    sources: [src/components/ShoeDetailContent.tsx, src/components/AddedToBagModal.tsx, src/app/api/cart/route.ts]
+  - id: favorite-heart
+    kind: button
+    name: Favorite heart
+    locator: "[aria-label*='avorite']"
+    sources: [src/components/FavoriteHeart.tsx, src/app/api/favorites/**]
+  - id: review-feed
+    kind: form
+    name: Reviews on shoe detail
+    locator: /shoe/:id
+    sources: [src/components/ReviewFeed.tsx, src/app/api/reviews/**, "src/app/api/shoes/*/reviews/**"]
+
+  - id: cart
+    kind: page
+    name: Bag
+    locator: /cart
+    sources: [src/app/cart/**, src/app/api/cart/**]
+  - id: checkout
+    kind: flow
+    name: Checkout
+    locator: /checkout
+    description: Bag summary, discount code, place order.
+    sources: [src/app/checkout/**, src/app/api/checkout/**, src/app/api/discount/**]
+  - id: favorites
+    kind: page
+    name: Favorites
+    locator: /favorites
+    sources: [src/app/favorites/**, src/components/FavoriteHeart.tsx]
+  - id: login
+    kind: form
+    name: Login / sign up
+    locator: /login
+    sources: [src/app/login/**, src/lib/supabase.ts]
+  - id: profile
+    kind: page
+    name: Profile and purchases
+    locator: /profile
+    description: Purchased shoes and the review form for them.
+    sources: [src/app/profile/**, src/app/api/profile/**]
+
+  # API endpoints
+  - id: api-cart
+    kind: endpoint
+    name: GET/POST /api/cart
+    locator: /api/cart
+    sources: [src/app/api/cart/route.ts]
+  - id: api-cart-item
+    kind: endpoint
+    name: DELETE /api/cart/[id]
+    locator: /api/cart/:id
+    sources: ["src/app/api/cart/[[]id]/**"]
+  - id: api-checkout
+    kind: endpoint
+    name: POST /api/checkout
+    locator: /api/checkout
+    sources: [src/app/api/checkout/**]
+  - id: api-discount-validate
+    kind: endpoint
+    name: POST /api/discount/validate
+    locator: /api/discount/validate
+    sources: [src/app/api/discount/**]
+  - id: api-favorites-toggle
+    kind: endpoint
+    name: POST /api/favorites/toggle
+    locator: /api/favorites/toggle
+    sources: [src/app/api/favorites/**]
+  - id: api-purchases
+    kind: endpoint
+    name: GET /api/profile/purchases
+    locator: /api/profile/purchases
+    sources: [src/app/api/profile/**]
+  - id: api-reviews
+    kind: endpoint
+    name: POST /api/reviews and GET /api/shoes/[id]/reviews
+    locator: /api/reviews
+    sources: [src/app/api/reviews/**, "src/app/api/shoes/*/reviews/**"]
+  - id: api-stock
+    kind: endpoint
+    name: GET /api/shoes/[id]/stock
+    locator: /api/shoes/:id/stock
+    sources: ["src/app/api/shoes/*/stock/**"]
+
+invariants:
+  - id: discount-counted-on-order
+    statement: >-
+      A discount code's used_count increases only when an order is actually
+      created with that code, and never beyond max_uses.
+    severity: P0
+    surfaces: [checkout, api-checkout, api-discount-validate]
+  - id: order-total-matches-bag
+    statement: >-
+      An order's total equals the sum of unit price x quantity, where unit price
+      is msrp x (1 - sale_percent/100) for that size and color, minus the applied
+      discount, and is never below zero.
+    severity: P0
+    check: order.total == max(0, sum(item.msrp * (1 - item.sale_percent / 100) * item.quantity) - discount)
+    surfaces: [checkout, cart, api-checkout]
+  - id: checkout-success-means-order
+    statement: >-
+      Checkout reports success only if an order with all bag items was created;
+      stock is deducted and the bag is cleared only in that case.
+    severity: P0
+    surfaces: [checkout, api-checkout]
+  - id: no-overselling
+    statement: >-
+      Stock quantity never goes below zero and an order never includes more units
+      of a size and color than were available when it was placed.
+    severity: P0
+    surfaces: [add-to-bag, checkout, api-cart, api-checkout, api-stock]
+  - id: own-data-only
+    statement: >-
+      A shopper can only read or change their own bag items, favorites, orders and
+      reviews; requests for another user's records fail.
+    severity: P0
+    surfaces: [cart, favorites, profile, api-cart, api-cart-item, api-favorites-toggle, api-purchases, api-reviews]
+  - id: reserved-stock-released
+    statement: Removing an item from the bag releases exactly the stock it had reserved.
+    severity: P1
+    surfaces: [cart, api-cart-item, api-stock]
+  - id: sale-price-parity
+    statement: >-
+      The sale sticker and price shown for a size on the product card and shoe
+      page match the unit price charged in the bag and at checkout.
+    severity: P1
+    surfaces: [sale, shoe-detail, size-selector, cart, checkout]
+  - id: reviews-require-purchase
+    statement: >-
+      A shopper can review a shoe only after purchasing it, at most once per shoe,
+      with a rating from 1 to 5.
+    severity: P1
+    surfaces: [review-feed, profile, api-reviews, api-purchases]
+  - id: bag-count-matches-bag
+    statement: The bag count in the nav bar equals the total quantity of items on the bag page.
+    severity: P2
+    surfaces: [layout-nav, cart]
+  - id: favorite-toggle-roundtrip
+    statement: Toggling a favorite twice returns the shoe to its original favorited state everywhere it is shown.
+    severity: P2
+    surfaces: [favorite-heart, favorites, api-favorites-toggle]
+
+boundaries:
+  - Use only the storefront's pages and its /api routes; never call Supabase directly with the anon key.
+  - Never create, edit or delete shoes, stock rows or discount codes except through shopper actions in the app.
+  - Only sign in as the provided test accounts; do not sign up new real-looking accounts with real email addresses.
+  - Do not use real payment details or real personal data.
