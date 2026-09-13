@@ -16,6 +16,7 @@ export function SaleSticker({ discountPercent, size = "md" }: SaleStickerProps) 
   return (
     <span
       aria-label={`${discountPercent}% off`}
+      data-testid="sale-sticker"
       className={`z-10 flex items-center rounded bg-[#DB4444] text-[#FAFAFA] ${
         isXs
           ? "absolute right-1 top-1 py-0.5 px-1.5"
