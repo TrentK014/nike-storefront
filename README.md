@@ -1,3 +1,5 @@
+> Pipeline: `beta` is gated by the Agentic QA Fleet check before promotion to `main`.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -34,3 +36,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## QA beta environment
+
+The `beta` branch deploys to Vercel and uses a separate Supabase project so the Agentic QA Fleet can test without touching real data.
+
+- Schema: `supabase/migrations/` (reconstructed from the app's queries, with row level security). Seed catalog and discount codes: `supabase/seed.sql`.
+  Apply with `npx supabase link --project-ref <ref>` then `npx supabase db push --include-seed`.
+- Test shoppers (there is no sign-up page): `SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/qa/create-test-shoppers.mjs 10`
+  writes credentials to `~/.config/qa-agent/nike-storefront-beta-shoppers.json`. Never commit it.
+- QA manifest: `.qa/manifest.yaml`.
