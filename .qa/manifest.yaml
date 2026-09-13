@@ -1,16 +1,25 @@
-# QA manifest for the Agentic QA Fleet.
-# Format: https://github.com/joshmkim/qa-agent/blob/main/docs/qa-manifest.md
+# Code primitives for the Agentic QA Fleet: what the storefront is, what to
+# cover, and what must never break.
+# Format: https://github.com/joshmkim/qa-agent/blob/main/docs/code-primitives.md
 # Validate locally: pnpm --filter @qa-agent/control-plane manifest:check .qa/manifest.yaml
 version: 1
 
 product:
   name: Nike Storefront
   intent: >-
-    Shoppers browse shoes by category (men, women, kids, sport, classics, sale),
-    open a shoe to pick a size, favorite shoes, add sized items to their bag,
-    and check out with an optional discount code. Signed-in shoppers can review
-    shoes they have purchased. Sale prices come from each stock row's sale_percent.
-  stakeholders: [storefront team]
+    Shoppers browse shoes by category (men, women, kids, sport, classics, sale)
+    or from the home page's New Arrivals and What's Trending tabs, open a shoe
+    to pick a size and quantity, favorite shoes, add sized items to their bag,
+    and check out with an optional discount code. Stock is reserved when an item
+    is added to the bag, released when it is removed, and deducted when an order
+    is placed. Sale prices come from each size and color's sale_percent, so one
+    shoe can have different prices per size. Signing in is required for the bag,
+    checkout, favorites, and profile; there is no sign-up page (accounts are
+    provisioned). Signed-in shoppers see what they have purchased on their
+    profile and can review each purchased shoe once, with a 1 to 5 star rating
+    and optional text. Contact, delivery, and payment fields at checkout are
+    display only; no payment is processed.
+  stakeholders: [storefront team, merchandising, customer support]
 
 surfaces:
   # Shared shell: every page renders inside StorefrontLayout (nav bar with bag count, product grid).
@@ -155,6 +164,191 @@ surfaces:
     locator: /api/shoes/:id/stock
     sources: ["src/app/api/shoes/*/stock/**"]
 
+  # --- Page sections and shared chrome ---
+  - id: promo-banner
+    kind: page
+    name: Promo banner
+    locator: "header"
+    description: Top banner advertising a first-order discount code.
+    sources: [src/components/StorefrontLayout.tsx]
+  - id: home-hero
+    kind: page
+    name: Home hero
+    locator: /
+    description: Large hero image with SHOP ALL, ADJUSTABLE and SOFT PAD callouts.
+    sources: [src/components/StorefrontLayout.tsx, src/app/page.tsx]
+  - id: home-new-arrivals
+    kind: page
+    name: Home, New Arrivals tab
+    locator: /?tab=new-arrivals
+    sources: [src/app/page.tsx, src/components/StorefrontLayout.tsx, src/components/ProductGridWithFavorites.tsx]
+  - id: home-whats-trending
+    kind: page
+    name: Home, What's Trending tab
+    locator: /?tab=whats-trending
+    sources: [src/app/page.tsx, src/components/StorefrontLayout.tsx, src/components/ProductGridWithFavorites.tsx]
+  - id: nav-logo
+    kind: button
+    name: Nav logo
+    locator: "nav a[href='/']"
+    sources: [src/components/NavBar.tsx]
+  - id: nav-category-links
+    kind: button
+    name: Nav category links
+    locator: "nav ul a"
+    description: Women, Men, Kids, Classics, Sport, Sale; the current category is underlined.
+    sources: [src/components/NavBar.tsx]
+  - id: nav-bag-icon
+    kind: button
+    name: Nav bag icon and count badge
+    locator: "nav a[href='/cart']"
+    description: Badge shows the total quantity in the bag, 99+ above 99.
+    sources: [src/components/NavBar.tsx, src/app/api/cart/route.ts]
+  - id: nav-favorites-icon
+    kind: button
+    name: Nav favorites icon
+    locator: "nav a[href='/favorites']"
+    sources: [src/components/NavBar.tsx]
+  - id: nav-account-icon
+    kind: button
+    name: Nav account icon
+    locator: "nav a[href='/profile'], nav a[href='/login']"
+    description: Goes to the profile when signed in, to login when signed out.
+    sources: [src/components/NavBar.tsx]
+  - id: footer
+    kind: page
+    name: Footer
+    locator: "footer"
+    sources: [src/components/StorefrontLayout.tsx]
+  - id: footer-social-links
+    kind: button
+    name: Footer social links
+    locator: "footer a[target='_blank']"
+    description: Facebook, Instagram, X, LinkedIn and YouTube icons.
+    sources: [src/components/StorefrontLayout.tsx]
+
+  # --- Browsing ---
+  - id: product-card
+    kind: button
+    name: Product card
+    locator: "a[href^='/shoe/']"
+    description: Image, name, price or sale price with sticker, star rating and review count, favorite heart.
+    sources: [src/components/ProductCard.tsx, src/components/SaleSticker.tsx, src/components/FavoriteHeart.tsx, src/types/database.ts]
+  - id: product-grid-empty
+    kind: page
+    name: Empty product grid
+    locator: /favorites
+    description: What a category or favorites grid shows when it has no shoes.
+    sources: [src/components/ProductGridWithFavorites.tsx, src/components/StorefrontLayout.tsx]
+  - id: shoe-not-found
+    kind: page
+    name: Shoe page for an unknown id
+    locator: /shoe/:unknown-id
+    sources: ["src/app/shoe/[[]id]/**"]
+  - id: shoe-price
+    kind: page
+    name: Shoe page price and sale sticker
+    locator: /shoe/:id
+    description: Lowest available price until a size is selected, then that size's price; original price struck through when on sale.
+    sources: [src/components/ShoeDetailContent.tsx, src/components/SaleSticker.tsx, src/types/database.ts]
+  - id: quantity-select
+    kind: form
+    name: Quantity select
+    locator: "select"
+    description: 1 to 9 on the shoe page; the API accepts up to 99.
+    sources: [src/components/ShoeSizeSelector.tsx]
+  - id: added-to-bag-modal
+    kind: flow
+    name: Added to bag modal
+    locator: "[role='dialog']"
+    description: Confirms the shoe, size (M and W), price, and bag count, with View Bag and Checkout links.
+    sources: [src/components/AddedToBagModal.tsx, src/components/ShoeDetailContent.tsx]
+  - id: review-list
+    kind: page
+    name: Review list
+    locator: /shoe/:id
+    description: Newest first, stars, date, optional text; empty state when there are no reviews.
+    sources: [src/components/ReviewFeed.tsx, "src/app/api/shoes/*/reviews/**"]
+
+  # --- Bag and checkout ---
+  - id: cart-line-item
+    kind: page
+    name: Bag line item
+    locator: /cart
+    description: Name, size, quantity, and line price for one bag entry.
+    sources: [src/app/cart/**]
+  - id: cart-remove-item
+    kind: button
+    name: Remove from bag
+    locator: /cart
+    sources: [src/app/cart/**, "src/app/api/cart/[[]id]/**"]
+  - id: cart-empty
+    kind: page
+    name: Empty bag
+    locator: /cart
+    sources: [src/app/cart/**]
+  - id: checkout-contact-form
+    kind: form
+    name: Checkout contact and delivery
+    locator: "#checkout-email"
+    description: Email, name, address, city, state, ZIP, country. Display only.
+    sources: [src/app/checkout/**]
+  - id: checkout-payment-form
+    kind: form
+    name: Checkout payment
+    locator: "#checkout-card-number"
+    description: Name on card, card number, expiry, CVV. Display only; no payment is processed.
+    sources: [src/app/checkout/**]
+  - id: checkout-promo-code
+    kind: form
+    name: Checkout promo code
+    locator: "input[aria-label='Discount code']"
+    description: Uppercases input, validates against the current subtotal, shows the discount or an error.
+    sources: [src/app/checkout/**, src/app/api/discount/**]
+  - id: checkout-order-summary
+    kind: page
+    name: Checkout order summary
+    locator: /checkout
+    description: In your bag, subtotal, discount, and total.
+    sources: [src/app/checkout/**, src/types/database.ts]
+  - id: place-order
+    kind: button
+    name: Place order
+    locator: "button:has-text('Place order')"
+    description: Disabled while loading or when the bag is empty; returns to home on success.
+    sources: [src/app/checkout/**, src/app/api/checkout/**]
+
+  # --- Account ---
+  - id: login-error-state
+    kind: form
+    name: Login error state
+    locator: /login
+    description: Inline error for wrong credentials or empty fields.
+    sources: [src/app/login/**]
+  - id: auth-redirects
+    kind: flow
+    name: Signed-out redirects
+    locator: /cart
+    description: Bag, checkout, favorites, and profile send signed-out shoppers to login.
+    sources: [src/app/cart/**, src/app/checkout/**, src/app/favorites/**, src/app/profile/**, src/components/ShoeDetailContent.tsx]
+  - id: profile-purchases
+    kind: page
+    name: Profile purchase list
+    locator: /profile
+    description: Each purchased shoe with its purchase date and review status; empty state when there are none.
+    sources: [src/app/profile/**, src/app/api/profile/**]
+  - id: profile-review-form
+    kind: form
+    name: Profile review form
+    locator: /profile
+    description: Star rating and optional text for a purchased shoe not yet reviewed.
+    sources: [src/app/profile/**, src/app/api/reviews/**]
+  - id: favorites-empty
+    kind: page
+    name: Empty favorites
+    locator: /favorites
+    sources: [src/app/favorites/**]
+
 invariants:
   - id: discount-counted-on-order
     statement: >-
@@ -218,6 +412,119 @@ invariants:
     statement: Toggling a favorite twice returns the shoe to its original favorited state everywhere it is shown.
     severity: P2
     surfaces: [favorite-heart, favorites, api-favorites-toggle]
+
+  - id: add-more-of-same-size
+    statement: >-
+      Adding more of a size and color already in the bag succeeds whenever
+      enough unreserved stock remains, and is refused only when it does not.
+    severity: P1
+    surfaces: [add-to-bag, api-cart, cart]
+  - id: stocked-sizes-selectable
+    statement: >-
+      Every size with available stock can be selected and added to the bag,
+      including kids' sizes, and sizes with no available stock cannot be.
+    severity: P1
+    surfaces: [size-selector, shoe-detail, category-kids, add-to-bag]
+  - id: order-matches-bag
+    statement: >-
+      A placed order contains exactly the bag's items (shoe, size, color,
+      quantity, unit price) at the moment of checkout, and the bag is empty
+      afterwards.
+    severity: P0
+    surfaces: [place-order, checkout-order-summary, api-checkout, cart]
+  - id: discount-rules-enforced
+    statement: >-
+      Expired, not-yet-valid, used-up, and below-minimum discount codes are
+      rejected both when applied and when the order is placed, and a rejected
+      code never reduces the order total.
+    severity: P0
+    surfaces: [checkout-promo-code, api-discount-validate, api-checkout]
+  - id: advertised-code-works
+    statement: >-
+      Any discount code advertised on the site (for example in the promo
+      banner) is accepted at checkout under its advertised terms.
+    severity: P1
+    surfaces: [promo-banner, checkout-promo-code, api-discount-validate]
+  - id: exact-price-display
+    statement: >-
+      Prices are shown to the cent everywhere a price appears (cards, shoe page,
+      bag modal, bag, checkout); a $97.50 price is never shown as $98 or $97.5.
+    severity: P2
+    surfaces: [product-card, shoe-price, added-to-bag-modal, cart-line-item, checkout-order-summary]
+  - id: card-price-matches-shoe-page
+    statement: >-
+      The price and sale sticker on a product card match the lowest price and
+      sticker on that shoe's page, considering only sizes that are in stock.
+    severity: P2
+    surfaces: [product-card, shoe-price, sale]
+  - id: checkout-total-math
+    statement: >-
+      The checkout summary's total equals its subtotal minus the applied
+      discount, and the subtotal equals the sum of the bag's line prices.
+    severity: P1
+    check: summary.total == max(0, summary.subtotal - summary.discount) && summary.subtotal == sum(bag.lines[].price)
+    surfaces: [checkout-order-summary, checkout-promo-code, cart-line-item]
+  - id: empty-bag-cannot-order
+    statement: >-
+      Place order is unavailable with an empty bag, and the checkout API
+      rejects an empty bag without creating an order.
+    severity: P1
+    surfaces: [place-order, cart-empty, api-checkout]
+  - id: signed-out-protected
+    statement: >-
+      Signed-out shoppers are sent to login from the bag, checkout, favorites,
+      and profile, and no bag, favorite, review, or order change can be made
+      without signing in.
+    severity: P0
+    surfaces: [auth-redirects, api-cart, api-checkout, api-favorites-toggle, api-reviews]
+  - id: failed-actions-explain
+    statement: >-
+      When adding to the bag, favoriting, removing an item, applying a code,
+      or placing an order fails, the shopper sees a message saying so; nothing
+      fails silently.
+    severity: P2
+    surfaces: [add-to-bag, favorite-heart, cart-remove-item, checkout-promo-code, place-order]
+  - id: category-pages-filter
+    statement: >-
+      Each category page lists exactly its shoes: Men and Women by gender, Kids
+      by age, Sport and Classics by their flags, and Sale only shoes with an
+      in-stock variant on sale.
+    severity: P1
+    surfaces: [category-men, category-women, category-kids, category-sport, category-classics, sale]
+  - id: bag-modal-accurate
+    statement: >-
+      The added-to-bag modal shows the size, price, and updated bag count for
+      what was actually added.
+    severity: P2
+    surfaces: [added-to-bag-modal, nav-bag-icon, add-to-bag]
+  - id: account-icon-destination
+    statement: >-
+      The nav account icon goes to the profile when signed in and to login
+      when signed out, and a signed-in shopper can sign out.
+    severity: P2
+    surfaces: [nav-account-icon, profile, login]
+  - id: unknown-ids-not-found
+    statement: >-
+      Unknown shoe ids and cart item ids return a not-found page or 404, never a
+      crash or a 500.
+    severity: P2
+    surfaces: [shoe-not-found, api-stock, api-reviews, api-cart-item]
+  - id: api-rejects-bad-input
+    statement: >-
+      API routes answer malformed JSON, missing fields, and out-of-range values
+      (quantity, rating) with a 4xx and a readable error, never a 500.
+    severity: P2
+    surfaces: [api-cart, api-cart-item, api-checkout, api-discount-validate, api-favorites-toggle, api-reviews]
+  - id: purchase-date-latest
+    statement: >-
+      A shoe bought more than once shows its most recent purchase date on the
+      profile.
+    severity: P3
+    surfaces: [profile-purchases, api-purchases]
+  - id: footer-links-named
+    statement: Each footer social icon opens the network it is labeled with.
+    severity: P3
+    surfaces: [footer-social-links]
 
 boundaries:
   - Use only the storefront's pages and its /api routes; never call Supabase directly with the anon key.
