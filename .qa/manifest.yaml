@@ -161,7 +161,7 @@ invariants:
       A discount code's used_count increases only when an order is actually
       created with that code, and never beyond max_uses.
     severity: P0
-    surfaces: [chekout, api-checkout, api-discount-validate]
+    surfaces: [checkout, api-checkout, api-discount-validate]
   - id: order-total-matches-bag
     statement: >-
       An order's total equals the sum of unit price x quantity, where unit price
