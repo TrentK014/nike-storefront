@@ -204,6 +204,12 @@ invariants:
       with a rating from 1 to 5.
     severity: P1
     surfaces: [review-feed, profile, api-reviews, api-purchases]
+  - id: pages-scroll
+    statement: >-
+      Every page can be scrolled to its footer with the mouse wheel or trackpad,
+      not only with the keyboard.
+    severity: P1
+    surfaces: [layout-nav, home, category-men, cart, checkout]
   - id: bag-count-matches-bag
     statement: The bag count in the nav bar equals the total quantity of items on the bag page.
     severity: P2

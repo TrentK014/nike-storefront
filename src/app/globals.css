@@ -25,7 +25,10 @@ body {
   width: 100%;
   min-height: 100%;
   margin: 0;
-  overflow-x: hidden;
+  /* clip, not hidden: overflow-x: hidden on both html and body turns body into
+     its own scroll container, and with overscroll-behavior: none wheel and
+     trackpad scrolling never reach the page. */
+  overflow-x: clip;
   /* Stop scroll at top/bottom; no bounce or overscroll past header/footer */
   overscroll-behavior: none;
 }
